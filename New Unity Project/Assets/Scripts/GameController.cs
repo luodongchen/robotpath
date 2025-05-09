@@ -1,82 +1,59 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class GameController : MonoBehaviour
 {
     public static GameController Instance;
 
-    [Header("Grid Settings")]
-    public int width = 20;
-    public int height = 20;
-    public float cellSize = 2f;
-    public GameObject floorTilePrefab;
+    public int width = 10;
+    public int height = 10;
+    public float cellSize = 1f;
 
-    [Header("Robot Settings")]
     public GameObject robotPrefab;
-    public int robotCount = 3;
 
-    private bool[,] walkableGrid;
-    private List<float> taskEfficiencies = new List<float>();
-
-    void Awake() => Instance = this;
-
-    void Start()
+    private void Awake()
     {
-        GenerateGrid();
-        SpawnMultipleRobots(robotCount);
-        PositionCamera();
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
     }
 
-    void GenerateGrid()
+    private void Start()
     {
-        walkableGrid = new bool[width, height];
-        for (int x = 0; x < width; x++)
+        InitCamera();
+        SpawnRobot();
+    }
+
+    // 初始化摄像机
+    void InitCamera()
+    {
+        CameraController camCtrl = Camera.main.GetComponent<CameraController>();
+        if (camCtrl != null)
         {
-            for (int y = 0; y < height; y++)
-            {
-                walkableGrid[x, y] = true;
-            }
+            camCtrl.Initialize(width, height, cellSize);
         }
     }
 
-    void SpawnMultipleRobots(int count)
+    // 将网格坐标转换为世界坐标
+    public Vector3 GridToWorld(Vector2Int gridPos)
     {
-        for (int i = 0; i < count; i++)
-        {
-            Vector2Int start = new Vector2Int(Random.Range(0, width / 2), Random.Range(0, height));
-            Vector2Int end = new Vector2Int(Random.Range(width / 2, width), Random.Range(0, height));
-            SpawnRobot(start, end);
-        }
+        return new Vector3(gridPos.x * cellSize, 0f, gridPos.y * cellSize);
     }
 
-    void SpawnRobot(Vector2Int startGrid, Vector2Int targetGrid)
+    // 判断坐标是否在网格范围内
+    public bool IsInsideGrid(Vector2Int pos)
     {
-        Vector3 worldStart = GridToWorld(startGrid);
-        GameObject robotObj = Instantiate(robotPrefab, worldStart + Vector3.up * 0.5f, Quaternion.identity);
-        RobotController rc = robotObj.GetComponent<RobotController>();
-        rc.Initialize(startGrid, targetGrid);
+        return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
     }
 
-    public Vector3 GridToWorld(Vector2Int gridPos) =>
-        new Vector3(gridPos.x * cellSize, 0, gridPos.y * cellSize);
-
-    public bool[,] GetWalkableGrid() => walkableGrid;
-
-    public void ReportTaskEfficiency(float efficiency)
+    // 生成一个机器人并初始化其路径任务
+    void SpawnRobot()
     {
-        taskEfficiencies.Add(efficiency);
-        Debug.Log($"任务完成效率: {efficiency:F2} （共{taskEfficiencies.Count}个任务）");
-    }
+        Vector2Int start = new Vector2Int(0, 0);
+        Vector2Int target = new Vector2Int(width - 1, height - 1);
 
-    void PositionCamera()
-    {
-        if (Camera.main != null)
-        {
-            float midX = (width * cellSize) / 2f;
-            float midZ = (height * cellSize) / 2f;
-            float camHeight = Mathf.Max(width, height) * 1.5f;
-            Camera.main.transform.position = new Vector3(midX, camHeight, midZ);
-            Camera.main.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        }
+        GameObject robot = Instantiate(robotPrefab);
+        robot.name = "Robot";
+        robot.GetComponent<RobotController>().Initialize(start, target);
     }
 }
