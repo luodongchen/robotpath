@@ -21,7 +21,6 @@ public class RobotController : MonoBehaviour
     public bool TaskCompleted => taskCompleted;
     public float LastEfficiency { get; private set; }
 
-
     public void Initialize(Vector2Int start, Vector2Int target)
     {
         currentPos = start;
@@ -40,6 +39,9 @@ public class RobotController : MonoBehaviour
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
         lineRenderer.startColor = Color.cyan;
         lineRenderer.endColor = Color.white;
+
+        pathPoints.Clear();
+        pathPoints.Add(transform.position);
     }
 
     void Update()
@@ -59,15 +61,21 @@ public class RobotController : MonoBehaviour
         var action = agent.ChooseAction(currentPos);
         var nextPos = agent.GetNextState(currentPos, action);
 
-        float reward = -0.1f; // 默认小惩罚鼓励更快完成
+        float reward = -0.1f;
 
         if (nextPos == targetPos)
         {
             reward = 10f;
             taskCompleted = true;
+
             float timeUsed = Time.time - taskStartTime;
             float efficiency = totalDistance / timeUsed;
+            LastEfficiency = efficiency;
+
             Debug.Log($"{name} finished! Time: {timeUsed:F2}s, Efficiency: {efficiency:F2}");
+
+            // 记录效率
+            TrainingManager.Instance.RecordEfficiency(efficiency);
         }
         else if (Vector2Int.Distance(nextPos, targetPos) < Vector2Int.Distance(currentPos, targetPos))
         {
@@ -88,19 +96,24 @@ public class RobotController : MonoBehaviour
         lineRenderer.SetPositions(pathPoints.ToArray());
     }
 
+    private void OnApplicationQuit()
+    {
+        if (agent != null)
+        {
+            agent.SaveQTable(qTablePath);
+        }
+    }
+
     private void OnDrawGizmos()
     {
         if (!Application.isPlaying) return;
 
-        // 当前目标
         Gizmos.color = Color.green;
         Gizmos.DrawSphere(GameController.Instance.GridToWorld(targetPos) + Vector3.up * 0.2f, 0.3f);
 
-        // 当前所在格子
         Gizmos.color = Color.blue;
         Gizmos.DrawSphere(GameController.Instance.GridToWorld(currentPos) + Vector3.up * 0.2f, 0.3f);
 
-        // 方向箭头（向所有可能动作）
         Gizmos.color = Color.yellow;
         Vector2Int[] directions = new Vector2Int[]
         {
@@ -116,16 +129,6 @@ public class RobotController : MonoBehaviour
                 Vector3 to = GameController.Instance.GridToWorld(next) + Vector3.up * 0.2f;
                 Gizmos.DrawLine(from, to);
             }
-        }
-    }
-
-    private void OnApplicationQuit()
-    {
-        if (agent != null)
-        {
-            agent.SaveQTable(qTablePath);
-            
-
         }
     }
 }

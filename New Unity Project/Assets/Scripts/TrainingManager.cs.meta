@@ -1,2 +1,15 @@
 fileFormatVersion: 2
 guid: 763fe785e2cee974d8a50ca016b0fd9d
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - robotPrefab: {fileID: 2238287666353872558, guid: adfe38a146c8019449e7ad7b17a400f9, type: 3}
+  - robotParent: {instanceID: 0}
+  - episodeText: {instanceID: 0}
+  - efficiencyText: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

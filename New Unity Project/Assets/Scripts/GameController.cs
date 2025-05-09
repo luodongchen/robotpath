@@ -9,6 +9,9 @@ public class GameController : MonoBehaviour
     public float cellSize = 1f;
 
     public GameObject robotPrefab;
+    public int robotCount = 1;
+
+    private Transform robotParent;
 
     private void Awake()
     {
@@ -21,7 +24,7 @@ public class GameController : MonoBehaviour
     private void Start()
     {
         InitCamera();
-        SpawnRobot();
+        SpawnRobots(5);
     }
 
     // 初始化摄像机
@@ -34,26 +37,39 @@ public class GameController : MonoBehaviour
         }
     }
 
-    // 将网格坐标转换为世界坐标
+    // 网格转世界坐标
     public Vector3 GridToWorld(Vector2Int gridPos)
     {
         return new Vector3(gridPos.x * cellSize, 0f, gridPos.y * cellSize);
     }
 
-    // 判断坐标是否在网格范围内
+    // 判断是否在网格内
     public bool IsInsideGrid(Vector2Int pos)
     {
         return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
     }
 
-    // 生成一个机器人并初始化其路径任务
-    void SpawnRobot()
+    // 批量生成机器人
+    void SpawnRobots(int count)
     {
-        Vector2Int start = new Vector2Int(0, 0);
-        Vector2Int target = new Vector2Int(width - 1, height - 1);
+        if (robotParent == null)
+        {
+            robotParent = new GameObject("Robots").transform;
+        }
 
-        GameObject robot = Instantiate(robotPrefab);
-        robot.name = "Robot";
-        robot.GetComponent<RobotController>().Initialize(start, target);
+        for (int i = 0; i < count; i++)
+        {
+            Vector2Int start = new Vector2Int(Random.Range(0, width), Random.Range(0, height));
+            Vector2Int target = new Vector2Int(Random.Range(0, width), Random.Range(0, height));
+            while (target == start)
+            {
+                target = new Vector2Int(Random.Range(0, width), Random.Range(0, height));
+            }
+
+            GameObject robot = Instantiate(robotPrefab, robotParent);
+            robot.name = $"Robot_{i}";
+            var controller = robot.GetComponent<RobotController>();
+            controller.Initialize(start, target);
+        }
     }
 }

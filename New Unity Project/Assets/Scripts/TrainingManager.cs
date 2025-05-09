@@ -2,8 +2,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
+
 public class TrainingManager : MonoBehaviour
 {
+
+    public static TrainingManager Instance { get; private set; } // ✅ 单例实例
+
     public GameObject robotPrefab;
     public Transform robotParent;
     public Text episodeText;
@@ -15,6 +19,19 @@ public class TrainingManager : MonoBehaviour
     private int currentEpisode = 0;
     private float cumulativeEfficiency = 0f;
     private RobotController currentRobot;
+
+    private void Awake()
+    {
+        // ✅ 设置单例
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
+    }
 
     void Start()
     {
@@ -55,4 +72,11 @@ public class TrainingManager : MonoBehaviour
         episodeText.text = $"Episode: {currentEpisode}/{totalEpisodes}";
         efficiencyText.text = $"Avg Efficiency: {(cumulativeEfficiency / currentEpisode):F2}";
     }
+
+    public void RecordEfficiency(float efficiency)
+    {
+        cumulativeEfficiency += efficiency;
+        UpdateUI();
+    }
+
 }
