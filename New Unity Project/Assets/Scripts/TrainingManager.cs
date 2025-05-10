@@ -2,11 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-
 public class TrainingManager : MonoBehaviour
 {
-
-    public static TrainingManager Instance { get; private set; } // ✅ 单例实例
+    public static TrainingManager Instance { get; private set; }
 
     public GameObject robotPrefab;
     public Transform robotParent;
@@ -22,15 +20,8 @@ public class TrainingManager : MonoBehaviour
 
     private void Awake()
     {
-        // ✅ 设置单例
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     void Start()
@@ -70,7 +61,7 @@ public class TrainingManager : MonoBehaviour
     void UpdateUI()
     {
         episodeText.text = $"Episode: {currentEpisode}/{totalEpisodes}";
-        efficiencyText.text = $"Avg Efficiency: {(cumulativeEfficiency / currentEpisode):F2}";
+        efficiencyText.text = $"Avg Efficiency: {(cumulativeEfficiency / currentEpisode):F3}";
     }
 
     public void RecordEfficiency(float efficiency)
@@ -78,5 +69,16 @@ public class TrainingManager : MonoBehaviour
         cumulativeEfficiency += efficiency;
         UpdateUI();
     }
+
+    void SaveQTable()
+    {
+        currentRobot.agent.SaveQTable(Application.dataPath + "/qtable.json");
+    }
+
+    void LoadQTable()
+    {
+        currentRobot.agent.LoadQTable(Application.dataPath + "/qtable.json");
+    }
+
 
 }

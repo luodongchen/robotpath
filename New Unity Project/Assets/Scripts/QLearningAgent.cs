@@ -6,139 +6,114 @@ using UnityEngine;
 [Serializable]
 public class QLearningAgent
 {
-    [Serializable]
-    public struct StateActionKey
+    public Vector2Int[] Directions = new Vector2Int[]
     {
-        public int x, y;
-        public string action;
+        Vector2Int.up,
+        Vector2Int.right,
+        Vector2Int.down,
+        Vector2Int.left
+    };
 
-        public StateActionKey(Vector2Int state, QLearningAgent.Action action)
-        {
-            this.x = state.x;
-            this.y = state.y;
-            this.action = action.ToString();
-        }
-
-        public Vector2Int ToVector2Int() => new Vector2Int(x, y);
-        public QLearningAgent.Action ToAction() => (QLearningAgent.Action)Enum.Parse(typeof(QLearningAgent.Action), action);
-    }
-
-    [Serializable]
-    public class QTableData
-    {
-        public List<StateActionKey> keys = new List<StateActionKey>();
-        public List<float> values = new List<float>();
-    }
-
-    private Dictionary<StateActionKey, float> qTable = new Dictionary<StateActionKey, float>();
     private float learningRate = 0.1f;
-    private float discountFactor = 0.9f;
-    private float explorationRate = 0.2f;
-    private int gridWidth, gridHeight;
+    private float discountFactor = 0.95f;
+    private float epsilon = 0.2f;
 
-    public enum Action { Up, Down, Left, Right }
+    // Q 表: 状态-目标 对应的动作 Q 值
+    private Dictionary<string, float[]> qTable = new Dictionary<string, float[]>();
 
-    public QLearningAgent(int width, int height)
+    public Vector2Int ChooseAction(Vector2Int state, Vector2Int goal)
     {
-        gridWidth = width;
-        gridHeight = height;
-    }
+        string key = GetStateKey(state, goal);
 
-    public Vector2Int GetNextState(Vector2Int current, Action action)
-    {
-        Vector2Int next = current;
-        switch (action)
+        if (!qTable.ContainsKey(key))
+            qTable[key] = new float[Directions.Length];
+
+        if (UnityEngine.Random.value < epsilon)
         {
-            case Action.Up: next += Vector2Int.up; break;
-            case Action.Down: next += Vector2Int.down; break;
-            case Action.Left: next += Vector2Int.left; break;
-            case Action.Right: next += Vector2Int.right; break;
+            // 探索
+            int rand = UnityEngine.Random.Range(0, Directions.Length);
+            return Directions[rand];
         }
-        if (next.x < 0 || next.x >= gridWidth || next.y < 0 || next.y >= gridHeight)
-            return current;
-        return next;
-    }
-
-    public Action ChooseAction(Vector2Int state)
-    {
-        if (UnityEngine.Random.value < explorationRate)
-            return (Action)UnityEngine.Random.Range(0, 4);
-
-        float maxQ = float.MinValue;
-        Action bestAction = Action.Up;
-
-        foreach (Action a in Enum.GetValues(typeof(Action)))
+        else
         {
-            float q = GetQValue(state, a);
-            if (q > maxQ)
+            // 利用
+            float[] qValues = qTable[key];
+            int bestIndex = 0;
+            float bestValue = qValues[0];
+            for (int i = 1; i < qValues.Length; i++)
             {
-                maxQ = q;
-                bestAction = a;
+                if (qValues[i] > bestValue)
+                {
+                    bestValue = qValues[i];
+                    bestIndex = i;
+                }
             }
+            return Directions[bestIndex];
         }
-        return bestAction;
     }
 
-    public void UpdateQValue(Vector2Int state, Action action, float reward, Vector2Int nextState)
+    public void UpdateQ(Vector2Int state, Vector2Int goal, int actionIndex, float reward, Vector2Int nextState)
     {
-        float currentQ = GetQValue(state, action);
-        float maxNextQ = float.MinValue;
+        string key = GetStateKey(state, goal);
+        string nextKey = GetStateKey(nextState, goal);
 
-        foreach (Action nextAction in Enum.GetValues(typeof(Action)))
-        {
-            float nextQ = GetQValue(nextState, nextAction);
-            if (nextQ > maxNextQ) maxNextQ = nextQ;
-        }
+        if (!qTable.ContainsKey(key))
+            qTable[key] = new float[Directions.Length];
 
-        float newQ = currentQ + learningRate * (reward + discountFactor * maxNextQ - currentQ);
-        SetQValue(state, action, newQ);
+        if (!qTable.ContainsKey(nextKey))
+            qTable[nextKey] = new float[Directions.Length];
+
+        float maxNextQ = Mathf.Max(qTable[nextKey]);
+        float currentQ = qTable[key][actionIndex];
+
+        qTable[key][actionIndex] = currentQ + learningRate * (reward + discountFactor * maxNextQ - currentQ);
     }
 
-    public float GetQValue(Vector2Int state, Action action)
+    private string GetStateKey(Vector2Int pos, Vector2Int goal)
     {
-        var key = new StateActionKey(state, action);
-        if (qTable.TryGetValue(key, out float value))
-            return value;
-        return 0f;
+        return $"{pos.x},{pos.y}:{goal.x},{goal.y}";
     }
 
-    public void SetQValue(Vector2Int state, Action action, float value)
+    // ===== 持久化方法 =====
+
+    [Serializable]
+    private class QTableWrapper
     {
-        var key = new StateActionKey(state, action);
-        qTable[key] = value;
+        public List<string> keys = new();
+        public List<float[]> values = new();
     }
 
     public void SaveQTable(string filePath)
     {
-        QTableData data = new QTableData();
+        QTableWrapper wrapper = new QTableWrapper();
         foreach (var kv in qTable)
         {
-            data.keys.Add(kv.Key);
-            data.values.Add(kv.Value);
+            wrapper.keys.Add(kv.Key);
+            wrapper.values.Add(kv.Value);
         }
 
-        string json = JsonUtility.ToJson(data, true);
+        string json = JsonUtility.ToJson(wrapper, true);
         File.WriteAllText(filePath, json);
-        Debug.Log("Q-table saved to " + filePath);
+        Debug.Log($"Q表已保存到：{filePath}");
     }
 
     public void LoadQTable(string filePath)
     {
         if (!File.Exists(filePath))
         {
-            Debug.LogWarning("Q-table file not found: " + filePath);
+            Debug.LogWarning($"Q表文件不存在：{filePath}");
             return;
         }
 
         string json = File.ReadAllText(filePath);
-        QTableData data = JsonUtility.FromJson<QTableData>(json);
+        QTableWrapper wrapper = JsonUtility.FromJson<QTableWrapper>(json);
 
         qTable.Clear();
-        for (int i = 0; i < data.keys.Count; i++)
+        for (int i = 0; i < wrapper.keys.Count; i++)
         {
-            qTable[data.keys[i]] = data.values[i];
+            qTable[wrapper.keys[i]] = wrapper.values[i];
         }
 
-        Debug.Log("Q-table loaded from " + filePath);
+        Debug.Log($"Q表已加载：{filePath}");
     }
 }

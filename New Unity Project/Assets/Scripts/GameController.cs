@@ -2,74 +2,64 @@ using UnityEngine;
 
 public class GameController : MonoBehaviour
 {
-    public static GameController Instance;
+    public static GameController Instance { get; private set; }
 
     public int width = 10;
     public int height = 10;
     public float cellSize = 1f;
 
-    public GameObject robotPrefab;
-    public int robotCount = 1;
-
-    private Transform robotParent;
+    public bool[,] grid;  // 网格数据，true 表示可走
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
-    }
-
-    private void Start()
-    {
-        InitCamera();
-        SpawnRobots(5);
-    }
-
-    // 初始化摄像机
-    void InitCamera()
-    {
-        CameraController camCtrl = Camera.main.GetComponent<CameraController>();
-        if (camCtrl != null)
+        // 单例模式
+        if (Instance != null && Instance != this)
         {
-            camCtrl.Initialize(width, height, cellSize);
+            Destroy(gameObject);
         }
+        else
+        {
+            Instance = this;
+        }
+
+        InitializeGrid();
     }
 
-    // 网格转世界坐标
+    void InitializeGrid()
+    {
+        grid = new bool[width, height];
+
+        // 默认全部可走
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                grid[x, y] = true;
+            }
+        }
+
+        // 示例：添加障碍（可选）
+        // grid[3, 3] = false;
+        // grid[4, 3] = false;
+    }
+
     public Vector3 GridToWorld(Vector2Int gridPos)
     {
-        return new Vector3(gridPos.x * cellSize, 0f, gridPos.y * cellSize);
+        return new Vector3(gridPos.x * cellSize, 0, gridPos.y * cellSize);
     }
 
-    // 判断是否在网格内
-    public bool IsInsideGrid(Vector2Int pos)
+    public Vector2Int WorldToGrid(Vector3 worldPos)
     {
-        return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
+        return new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / cellSize),
+            Mathf.RoundToInt(worldPos.z / cellSize)
+        );
     }
 
-    // 批量生成机器人
-    void SpawnRobots(int count)
+    public bool IsWalkable(Vector2Int pos)
     {
-        if (robotParent == null)
-        {
-            robotParent = new GameObject("Robots").transform;
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            Vector2Int start = new Vector2Int(Random.Range(0, width), Random.Range(0, height));
-            Vector2Int target = new Vector2Int(Random.Range(0, width), Random.Range(0, height));
-            while (target == start)
-            {
-                target = new Vector2Int(Random.Range(0, width), Random.Range(0, height));
-            }
-
-            GameObject robot = Instantiate(robotPrefab, robotParent);
-            robot.name = $"Robot_{i}";
-            var controller = robot.GetComponent<RobotController>();
-            controller.Initialize(start, target);
-        }
+        return pos.x >= 0 && pos.y >= 0 &&
+               pos.x < width && pos.y < height &&
+               grid[pos.x, pos.y];
     }
 }
