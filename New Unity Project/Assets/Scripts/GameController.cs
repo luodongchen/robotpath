@@ -38,7 +38,7 @@ public class GameController : MonoBehaviour
             }
         }
 
-        // 示例：添加障碍（可选）
+        // 示例：添加障碍
         // grid[3, 3] = false;
         // grid[4, 3] = false;
     }
